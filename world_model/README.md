@@ -22,5 +22,24 @@ graph TD
     C -->|Action a| ENV
 ```
 
+## Quick Start
 
+run the commands to generate training data (a pretrained CNN model is required).
+```bash
+python generate_vae_data.py
+python generate_mdnrnn_data.py
+```
 
+run the following commands to train the components separately.
+```bash
+python train_vae.py
+python train_mdn_rnn.py
+python train_controller.py
+```
+
+run it to watch AI playing the game.
+```bash
+python world_model_demo.py
+```
+
+![Demo](images/world_model_demo_1.gif)
