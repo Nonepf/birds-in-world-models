@@ -1,3 +1,7 @@
+# Birds in World Models
+*/tb_logs
+*.zip
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

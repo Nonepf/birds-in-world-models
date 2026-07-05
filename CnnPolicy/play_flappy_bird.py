@@ -25,6 +25,7 @@ while True:
                 sys.exit()
 
     obs, reward, terminated, truncated, info = env.step(action)
+    # print(obs)
 
     if terminated or truncated:
         print(f"Game Over!\nScore: {info.get('score', 0)}")
