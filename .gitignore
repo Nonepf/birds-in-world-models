@@ -1,6 +1,8 @@
 # Birds in World Models
 */tb_logs
 *.zip
+*/data
+*/checkpoints
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
