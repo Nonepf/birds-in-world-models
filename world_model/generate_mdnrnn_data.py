@@ -10,7 +10,7 @@ from models import Encoder
 def collect_rnn_data():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     encoder = Encoder(latent_dim=512).to(device)
-    encoder.load_state_dict(torch.load("../checkpoints/vae_encoder.pth", map_location=device))
+    encoder.load_state_dict(torch.load("./checkpoints/vae_encoder.pth", map_location=device))
     encoder.eval()
 
     env = gym.make("FlappyBird-v0", render_mode="rgb_array")

@@ -72,20 +72,22 @@ def run_training():
         model.train()
         total_loss = 0
         
+        total_lengths = 0
         for inputs_z, actions, targets_z, lengths in dataloader:
             inputs_z, actions, targets_z = inputs_z.to(device), actions.to(device), targets_z.to(device)
-            
+
             optimizer.zero_grad()
-            
+
             pi, mu, sigma, _ = model(inputs_z, actions)
-            
+
             loss = mdn_loss_fn(pi, mu, sigma, targets_z, lengths)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             total_loss += loss.item() * lengths.sum().item()
-            
-        print(f"Epoch [{epoch+1}/{epochs}] Trajectory NLL Loss: {total_loss / lengths.sum().item():.4f}")
+            total_lengths += lengths.sum().item()
+
+        print(f"Epoch [{epoch+1}/{epochs}] Trajectory NLL Loss: {total_loss / total_lengths:.4f}")
         
     torch.save(model.state_dict(), "./checkpoints/mdn_rnn_world_model.pth")
     print("MDN-RNN saved to ./checkpoints/mdn_rnn_world_model.pth")

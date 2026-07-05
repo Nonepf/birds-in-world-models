@@ -37,8 +37,9 @@ def evaluate_params(params, encoder, rnn, controller, env, device):
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             
-            act_float = torch.tensor([[[float(action)]]], device=device)
-            lstm_input = torch.cat([z.unsqueeze(1), act_float], dim=-1)
+            act_tensor = torch.tensor([[action]], device=device)
+            act_embed = rnn.action_embed(act_tensor)  # (1, 1, 16)
+            lstm_input = torch.cat([z.unsqueeze(1), act_embed], dim=-1)  # (1, 1, 528)
             _, hidden = rnn.lstm(lstm_input, hidden)
             
     return total_reward
