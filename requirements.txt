@@ -2,3 +2,4 @@ gymnasium
 numpy
 pygame
 pytorch
+stable_baselines3

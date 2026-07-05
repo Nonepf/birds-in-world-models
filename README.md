@@ -9,7 +9,7 @@ This repository contains clean, from-scratch PyTorch implementations of various 
 
 We plan to implement and evaluate the following architectures:
 
-- [ ] World Model (2018)
+- [ ] [World Model (2018)](world_model/README.md)
 - [ ] Dreamer V1
 - [ ] Genie
 - [ ] V-JEPA-AC 
@@ -17,7 +17,7 @@ We plan to implement and evaluate the following architectures:
 ### Current Progress
 
 - [x] Initialize repository setup.
-- [ ] Implement a simple CNN to test the environment.
+- [x] Implement a simple CNN to test the environment.
 - [ ] Prepare data for training the world model(2018).
 
 ## Installation and Quick Start
@@ -28,7 +28,7 @@ pip install requirements.txt
 pip install flappy-bird-gymnasium
 ```
 
-View [CnnPolicy](CnnPolicy/README.md) to have a glance at a simple CNN implementation.
+View [CnnPolicy](CnnPolicy/README.md) to take a look at a simple CNN implementation and get familiar with the Gymnasium environment. Then move on to a specific world model implementation by checking out the corresponding folder.
 
 ## Liscence
 
