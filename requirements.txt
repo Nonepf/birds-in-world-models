@@ -3,3 +3,4 @@ numpy
 pygame
 pytorch
 stable_baselines3
+cma
