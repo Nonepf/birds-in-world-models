@@ -43,3 +43,9 @@ python world_model_demo.py
 ```
 
 ![Demo](images/world_model_demo_1.gif)
+
+## Appendix
+
+Here is a VAE reconstruction picture.
+
+![Recon](images/vae_reconstruction.png)
