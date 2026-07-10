@@ -71,10 +71,10 @@ def main():
                 total += B
 
             loss = loss_sum / (L - 1)
-            loss.backward()
+            loss.backward() #type: ignore
             opt.step()
 
-            total_loss += loss.item() * total
+            total_loss += loss.item() * total #type: ignore
             total_correct += correct
             total_samples += total
 
