@@ -9,8 +9,8 @@ This repository contains clean, from-scratch PyTorch implementations of various 
 
 We plan to implement and evaluate the following architectures:
 
-- [ ] [World Model (2018)](world_model/README.md)
-- [ ] Dreamer V1
+- [x] [World Model (2018)](world_model/README.md)
+- [ ] [Dreamer V1](dreamer/README.md)
 - [ ] Genie
 - [ ] V-JEPA-AC 
 
@@ -18,7 +18,9 @@ We plan to implement and evaluate the following architectures:
 
 - [x] Initialize repository setup.
 - [x] Implement a simple CNN to test the environment.
-- [ ] Prepare data for training the world model(2018).
+- [x] Prepare data for training the world model(2018).
+- [x] Train and test the world model.
+- [ ] Write code for the dreamer. 
 
 ## Installation and Quick Start
 
