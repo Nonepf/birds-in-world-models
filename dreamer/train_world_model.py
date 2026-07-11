@@ -1,5 +1,5 @@
 """
-Train the world model.
+Train the world model (RSSM + ObsDecoder + RewardPredictor).
 """
 import os, sys
 import torch, torch.nn.functional as F, torch.optim as optim
@@ -9,6 +9,7 @@ import numpy as np
 
 from models import RSSM
 from models import ObsDecoder, RewardPredictor
+
 
 class DreamerDataset(Dataset):
     def __init__(self, npz_path):
@@ -30,18 +31,20 @@ class DreamerDataset(Dataset):
 def collate_fn(batch):
     o_in, a, r, o_next = zip(*batch)
     lengths = torch.tensor([len(x) for x in o_in])
-    o_in = pad_sequence(o_in, batch_first=True) #type: ignore
-    a = pad_sequence(a, batch_first=True) #type: ignore
-    r = pad_sequence(r, batch_first=True) #type: ignore
-    o_next = pad_sequence(o_next, batch_first=True) #type: ignore
+    o_in = pad_sequence(o_in, batch_first=True)
+    a = pad_sequence(a, batch_first=True)
+    r = pad_sequence(r, batch_first=True)
+    o_next = pad_sequence(o_next, batch_first=True)
     return o_in, a, r, o_next, lengths
+
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
     dataset = DreamerDataset("data/dreamer_trajectories.npz")
-    loader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
+    loader = DataLoader(dataset, batch_size=128, shuffle=True, collate_fn=collate_fn,
+                        num_workers=4, pin_memory=True, drop_last=True)
 
     rssm = RSSM(z_dim=50, h_dim=400, action_dim=2, obs_dim=512).to(device)
     obs_dec = ObsDecoder(400, 50, 512).to(device)
@@ -52,8 +55,7 @@ def main():
 
     for epoch in range(30):
         rssm.train(); obs_dec.train(); reward_pred.train()
-        total_obs_loss, total_rew_loss = 0, 0
-        total_len = 0
+        total_obs, total_rew, total_steps = 0, 0, 0
 
         for o_in, a, r, o_next, lengths in loader:
             o_in = o_in.to(device); a = a.to(device)
@@ -63,50 +65,45 @@ def main():
 
             opt.zero_grad()
 
-            h = torch.zeros(B, 400, device=device)
-            z = torch.zeros(B, 50, device=device)
-            mask = torch.arange(T, device=device).unsqueeze(0) < lengths.unsqueeze(1)
+            # One-hot actions
+            a_onehot = F.one_hot(a, num_classes=2).float()  # (B, T, 2)
 
-            obs_loss_sum, rew_loss_sum = 0, 0
-            valid_steps = 0
+            # RSSM sequence forward (GPU-efficient: GRU over T, heads batched over B*T)
+            h_seq, _, z_post = rssm.forward_sequence(a_onehot, o_in)
 
-            for t in range(T):
-                o_t = o_in[:, t, :]
-                a_t = a[:, t]
-                o_tp1 = o_next[:, t, :]
-                r_t = r[:, t]
+            # Predictions batched over (B*T)
+            h_flat = h_seq.reshape(B * T, 400)
+            z_flat = z_post.reshape(B * T, 50)
+            o_flat = o_next.reshape(B * T, 512)
+            r_flat = r.reshape(B * T)
 
-                a_onehot = F.one_hot(a_t, num_classes=2).float()
+            o_pred = obs_dec(h_flat, z_flat)            # (B*T, 512)
+            r_pred = reward_pred(h_flat, z_flat).squeeze(-1)  # (B*T,)
 
-                h, _, z_post = rssm(z, a_onehot, h, o_t)
+            # Per-element losses, then mask
+            mask = (torch.arange(T, device=device).unsqueeze(0) < lengths.unsqueeze(1)).reshape(B * T)
 
-                o_pred = obs_dec(h, z_post)
-                obs_loss_sum += (F.mse_loss(o_pred, o_tp1, reduction='none')
-                                 .mean(dim=-1) * mask[:, t]).sum()
+            obs_loss = (F.mse_loss(o_pred, o_flat, reduction='none').mean(dim=-1) * mask).sum()
+            rew_loss = (F.mse_loss(r_pred, r_flat, reduction='none') * mask).sum()
+            valid = mask.sum().clamp(min=1)
 
-                r_pred = reward_pred(h, z_post).squeeze(-1)
-                rew_loss_sum += (F.mse_loss(r_pred, r_t, reduction='none')
-                                 * mask[:, t]).sum()
-
-                valid_steps += mask[:, t].sum().item()
-                z = z_post
-
-            loss = (obs_loss_sum + rew_loss_sum) / max(valid_steps, 1)
-            loss.backward() #type: ignore
+            loss = (obs_loss + rew_loss) / valid
+            loss.backward()
             torch.nn.utils.clip_grad_norm_(params, max_norm=100.0)
             opt.step()
 
-            total_obs_loss += obs_loss_sum.item() #type: ignore
-            total_rew_loss += rew_loss_sum.item() #type: ignore
-            total_len += valid_steps
+            total_obs += obs_loss.item()
+            total_rew += rew_loss.item()
+            total_steps += valid.item()
 
-        print(f"Epoch [{epoch+1:2d}/30] obs={total_obs_loss/max(total_len,1):.4f}  "
-              f"rew={total_rew_loss/max(total_len,1):.4f}")
+        print(f"Epoch [{epoch+1:2d}/30] obs={total_obs/max(total_steps,1):.4f}  "
+              f"rew={total_rew/max(total_steps,1):.4f}")
 
     torch.save(rssm.state_dict(), "checkpoints/rssm.pth")
     torch.save(obs_dec.state_dict(), "checkpoints/obs_decoder.pth")
     torch.save(reward_pred.state_dict(), "checkpoints/reward_predictor.pth")
     print("Saved to checkpoints/")
+
 
 if __name__ == "__main__":
     main()

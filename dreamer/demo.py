@@ -1,8 +1,7 @@
 """
 Play Flappy Bird with trained Dreamer agent.
 """
-import os
-import sys
+import os, sys
 import numpy as np
 import torch, torch.nn.functional as F
 import gymnasium as gym
@@ -14,13 +13,6 @@ sys.path.insert(0, project_root)
 
 from world_model.models import Encoder as VAEEncoder
 from models import RSSM, Actor
-
-
-def encode_frame(obs, vae, device):
-    frame = torch.from_numpy(obs.transpose(2, 0, 1).astype(np.float32) / 255.0)
-    frame = frame.unsqueeze(0).to(device)
-    o, _ = vae(frame)
-    return o
 
 
 def play():
@@ -46,19 +38,19 @@ def play():
     obs, _ = env.reset()
     h = torch.zeros(1, 400, device=device)
     z = torch.zeros(1, 50, device=device)
-    prev_action = torch.zeros(1, 2, device=device)
+    prev_a = torch.zeros(1, 2, device=device)
 
     print("Playing... (close window to exit)")
     with torch.no_grad():
         while True:
-            o = encode_frame(obs, vae, device)
+            frame = torch.from_numpy(obs.transpose(2, 0, 1).astype(np.float32) / 255.0)
+            o, _ = vae(frame.unsqueeze(0).to(device))
 
-            h, _, z = rssm(z, prev_action, h, o)
+            h, _, z = rssm(z, prev_a, h, o)
 
-            action_logits = actor(h, z)
-            action = torch.argmax(action_logits, dim=1).item()
-
-            prev_action = F.one_hot(torch.tensor([action]), num_classes=2).float().to(device)
+            logits = actor(h, z)
+            action = torch.argmax(logits, dim=1).item()
+            prev_a = F.one_hot(torch.tensor([action]), num_classes=2).float().to(device)
 
             obs, reward, terminated, truncated, info = env.step(action)
             env.render()
@@ -68,7 +60,7 @@ def play():
                 obs, _ = env.reset()
                 h = torch.zeros(1, 400, device=device)
                 z = torch.zeros(1, 50, device=device)
-                prev_action = torch.zeros(1, 2, device=device)
+                prev_a = torch.zeros(1, 2, device=device)
 
 
 if __name__ == "__main__":

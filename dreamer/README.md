@@ -1,40 +1,31 @@
 # Dreamer
 
-This folder is a PyTorch reproduction of the [dreamer paper](https://arxiv.org/abs/1912.01603). The project is informed by [Dreamer](https://github.com/google-research/dreamer), a tensorflow implementation of the dreamer. We adopted their design philosophy and implemented it on PyTorch.
+PyTorch reproduction of [DreamerV1](https://arxiv.org/abs/1912.01603), applied to Flappy Bird. Reuses the VAE encoder from [world_model](../world_model/) for observation compression.
 
-Note: this implementation reused the VAE model in [world_model](../world_model/README.md). We freezed the parameter and use it for dimensionality reduction.
-
-With limited time, we lean heavily on AI coding agents to handle much of our coding.
-
-## Quick Start 
+## Pipeline
 
 ```bash
 cd dreamer
-python generate_dreamer_data.py
-python train_world_model.py
-python train_ac.py
+python generate_dreamer_data.py   # Step 1: collect trajectories (CNN + random)
+python train_world_model.py       # Step 2: train RSSM world model
+python train_ac.py                # Step 3: train Actor (CMA-ES on real env)
+python demo.py                    # Play
 ```
 
-Make sure a VAE `.pth` model is available in `world_model/checkpoints`.
+Requires a trained VAE checkpoint at `../world_model/checkpoints/vae_encoder.pth`.
 
-## Supplement
+## Design notes
 
-The original version performs poorly, consistently receiving zero score. 
+### Data mixing
 
-<table>
-  <tr>
-    <td><img src="images/demo1_old.gif" width="300"></td>
-    <td><img src="images/demo2_old.gif" width="300"></td>
-    <td><img src="images/demo3_old.gif" width="300"></td>
-  </tr>
-</table>
+CNN policy alone creates a spurious correlation: flapping co-occurs with dying because the CNN only flaps when already in danger. A reward predictor trained on this data learns that flap → low reward, which kills imagination-based RL. Mixing random-action episodes (50/50) breaks this correlation.
 
-The root cause of this issue may lie in a training–inference mismatch. During training, the model's reasoning process is iteratively conditioned on its own output distribution at each step, mimicking an autoregressive rollout. However, this deviates from the actual deployment conditions, leading to cumulative distributional drift that ultimately causes the model to collapse. 
+### Actor training
 
-This phenomenon closely resembles the exposure bias problem in LLM training, and the mitigation strategies can be similarly adapted from established LLM practices.
+We use CMA-ES directly on the real environment (not imagination). The Actor's first layer is pretrained via behavioral cloning, then frozen. Only the output layer (802 parameters) is optimized by CMA-ES against real game rewards. This avoids the distribution-shift and reward-predictor-quality issues that plague pure imagination training.
 
-A demonstration of the improved version is provided below.
+### GPU utilization
 
-
-
----
+- RSSM uses `nn.GRU` (not `nn.GRUCell`) for optimized CUDA sequence kernels
+- World model training batches all MLP head predictions over `(B*T)` in a single forward pass
+- DataLoader uses `num_workers=4` with `pin_memory=True`
