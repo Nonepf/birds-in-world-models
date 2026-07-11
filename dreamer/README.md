@@ -1,31 +1,42 @@
-# Dreamer
+# Dreamer V1
 
-PyTorch reproduction of [DreamerV1](https://arxiv.org/abs/1912.01603), applied to Flappy Bird. Reuses the VAE encoder from [world_model](../world_model/) for observation compression.
+PyTorch reproduction of [Dreamer V1](https://arxiv.org/abs/1912.01603) applied to Flappy Bird. Reuses the VAE encoder from [world_model](../world_model/) for observation compression — a deliberate simplification (the original trains a CNN encoder end-to-end as part of the world model).
 
-## Pipeline
+## Quick Start
 
 ```bash
 cd dreamer
-python generate_dreamer_data.py   # Step 1: collect trajectories (CNN + random)
-python train_world_model.py       # Step 2: train RSSM world model
-python train_ac.py                # Step 3: train Actor (CMA-ES on real env)
-python demo.py                    # Play
+
+# 1. Generate 5 random seed episodes
+python generate_dreamer_data.py
+
+# 2. Run full Dreamer online loop (200 iterations)
+python train.py
+
+# 3. Watch the trained agent play
+python demo.py
 ```
 
 Requires a trained VAE checkpoint at `../world_model/checkpoints/vae_encoder.pth`.
 
-## Design notes
+## Supplement
 
-### Data mixing
+The original version uses the CNN Policy to collect data, without data collecting - training loop, which led to poor performance.
 
-CNN policy alone creates a spurious correlation: flapping co-occurs with dying because the CNN only flaps when already in danger. A reward predictor trained on this data learns that flap → low reward, which kills imagination-based RL. Mixing random-action episodes (50/50) breaks this correlation.
+<table>
+  <tr>
+    <td><img src="images/demo1_old.gif" width="300"></td>
+    <td><img src="images/demo2_old.gif" width="300"></td>
+    <td><img src="images/demo3_old.gif" width="300"></td>
+  </tr>
+</table>
 
-### Actor training
+Then we finally reproduced a true "dreamer" version.
 
-We use CMA-ES directly on the real environment (not imagination). The Actor's first layer is pretrained via behavioral cloning, then frozen. Only the output layer (802 parameters) is optimized by CMA-ES against real game rewards. This avoids the distribution-shift and reward-predictor-quality issues that plague pure imagination training.
-
-### GPU utilization
-
-- RSSM uses `nn.GRU` (not `nn.GRUCell`) for optimized CUDA sequence kernels
-- World model training batches all MLP head predictions over `(B*T)` in a single forward pass
-- DataLoader uses `num_workers=4` with `pin_memory=True`
+<table>
+  <tr>
+    <td><img src="images/demo1_new.gif" width="300"></td>
+    <td><img src="images/demo2_new.gif" width="300"></td>
+    <td><img src="images/demo3_new.gif" width="300"></td>
+  </tr>
+</table>

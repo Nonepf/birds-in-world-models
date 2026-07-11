@@ -24,6 +24,11 @@ graph TD
 
 ## Quick Start
 
+Run the following line to navigate to the working directory.
+```bash
+cd world_model
+```
+
 run the commands to generate training data (a pretrained CNN model is required).
 ```bash
 python generate_vae_data.py
@@ -37,7 +42,7 @@ python train_mdn_rnn.py
 python train_controller.py
 ```
 
-run it to watch AI playing the game.
+run it to watch AI play the game.
 ```bash
 python world_model_demo.py
 ```

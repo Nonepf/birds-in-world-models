@@ -97,4 +97,4 @@ class RSSM(nn.Module):
         sigma_post = self.post_sigma(p_x).reshape(B, T, self.z_dim)
         z_post = self._sample(mu_post, sigma_post)
 
-        return h_seq, z_prior, z_post
+        return h_seq, z_prior, z_post, mu, sigma, mu_post, sigma_post
